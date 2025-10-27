@@ -8,9 +8,11 @@ import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgClientOutPort
 import im.bigs.pg.domain.calculation.FeeCalculator
+import im.bigs.pg.domain.partner.FeePolicy
 import im.bigs.pg.domain.payment.Payment
 import im.bigs.pg.domain.payment.PaymentStatus
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 
 /**
  * 결제 생성 유스케이스 구현체.
@@ -44,15 +46,20 @@ class PaymentService(
                 cardBin = command.cardBin,
                 cardLast4 = command.cardLast4,
                 productName = command.productName,
+                enc = command.enc,
             ),
         )
-        val hardcodedRate = java.math.BigDecimal("0.0300")
-        val hardcodedFixed = java.math.BigDecimal("100")
-        val (fee, net) = FeeCalculator.calculateFee(command.amount, hardcodedRate, hardcodedFixed)
+
+        val feePolicy: FeePolicy? = feePolicyRepository.findEffectivePolicy(partner.id, LocalDateTime.now())
+        require(feePolicy != null) { "Fee policy not found!" }
+
+        val rate = feePolicy.percentage
+        val fixed = feePolicy.fixedFee
+        val (fee, net) = FeeCalculator.calculateFee(command.amount, rate, fixed)
         val payment = Payment(
             partnerId = partner.id,
             amount = command.amount,
-            appliedFeeRate = hardcodedRate,
+            appliedFeeRate = rate,
             feeAmount = fee,
             netAmount = net,
             cardBin = command.cardBin,

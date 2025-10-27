@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 /** PG 승인 결과 요약. */
 data class PgApproveResult(
     val approvalCode: String,
-    @get:JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @get:JsonFormat(shape = JsonFormat.Shape.STRING)
     val approvedAt: LocalDateTime,
     val status: PaymentStatus = PaymentStatus.APPROVED,
 )

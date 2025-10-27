@@ -17,4 +17,5 @@ data class PaymentCommand(
     val cardBin: String? = null,
     val cardLast4: String? = null,
     val productName: String? = null,
+    val enc: String,
 )

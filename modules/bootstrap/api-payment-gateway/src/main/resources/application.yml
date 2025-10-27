@@ -17,3 +17,11 @@ spring:
 server:
   port: 8080
 
+# TestPG API 설정
+pg:
+  test:
+    base-url: "${PG_TEST_URL:https://api-test-pg.bigs.im}"
+  # 암호화 설정 (결제 요청 복호화용)
+  crypto:
+    api-key: "${PG_CRYPTO_API_KEY:11111111-1111-4111-8111-111111111111}"
+    iv: "${PG_CRYPTO_IV:AAAAAAAAAAAAAAAA}"

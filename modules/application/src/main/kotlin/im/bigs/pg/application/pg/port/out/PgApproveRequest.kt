@@ -9,4 +9,5 @@ data class PgApproveRequest(
     val cardBin: String?,
     val cardLast4: String?,
     val productName: String?,
+    val enc: String,
 )
