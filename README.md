@@ -1,143 +1,489 @@
-# 백엔드 사전 과제 – 결제 도메인 서버
+# 백엔드 사전 과제 – 결제 도메인 서버 (구현 완료)
 
-본 과제는 나노바나나 페이먼츠의 “결제 도메인 서버”를 주제로, 백엔드 개발자의 설계·구현·테스트 역량을 평가하기 위한 사전 과제입니다. 제공된 멀티모듈 + 헥사고널 아키텍처 기반 코드를 바탕으로 요구사항을 충족하는 기능을 완성해 주세요.
+> 나노바나나 페이먼츠 결제 도메인 서버 - Kotlin + Spring Boot + 헥사고널 아키텍처
 
-주의: 이 디렉터리(`backend-test-v1`)만 압축/전달됩니다. 외부 경로를 참조하지 않도록 README/코드/스크립트를 유지해 주세요.
+## 📋 목차
+1. [구현 완료 사항](#-구현-완료-사항)
+2. [빠른 시작](#-빠른-시작)
+3. [API 사용 가이드](#-api-사용-가이드)
+4. [테스트 실행](#-테스트-실행)
+5. [프로젝트 구조](#-프로젝트-구조)
+6. [변경 이력](#-변경-이력)
+7. [추가 구현 사항](#-추가-구현-사항)
+8. [상세 문서](#-상세-문서)
 
-## 1. 배경 시나리오
-- 본 서비스는 결제대행사 “나노바나나 페이먼츠”의 결제 도메인 서버입니다.
-- 현재는 제휴사가 없어 “목업 PG”만 연동되어 있으며, 결제는 항상 성공합니다.
-- 정산금 계산식은 임시로 “하드코드(3% + 100원)” 되어 있습니다.
+---
 
-여러 제휴사와 연동을 시작하면서 다음이 필요합니다.
-1) 새로운 결제 제휴사 연동(기본 스켈레톤 제공)
-2) 결제 내역 조회 API 제공(통계 포함, 커서 기반 페이지네이션)
-3) 제휴사별 수수료 정책 적용(하드코드 제거, 정책 테이블 기반)
+## ✅ 구현 완료 사항
 
-## 2. 과제 목표
-아래 항목을 모두 구현/보강하고, 테스트로 증명해 주세요.
+### 필수 과제
+- ✅ **과제 1: 결제 생성 API**
+  - TestPG REST API 연동 (`https://api-test-pg.bigs.im/v1/approve`)
+  - 제휴사별 수수료 정책 적용 (하드코딩 제거)
+  - PG 선택 로직 구현 (홀수: MockPG, 짝수: TestPG)
+  - 에러 처리 (401, 422)
 
-1) 결제 생성
-- 엔드포인트: POST `/api/v1/payments`
-- 내용: 결제 승인(외부 PG 연동) 후, 수수료/정산금 계산 결과를 포함하여 저장
-- 주의: 현재 `PaymentService`는 하드코드된 수수료(3% + 100원)를 사용합니다. 제휴사별 정책(percentage, fixedFee, effective_from)에 따라 계산하도록 리팩터링하세요.  
-  또한 반드시 [11. 참고자료](#11-참고자료) 의 과제 내 연동 대상 API 문서를 참고하여 TestPg 와 Rest API 를 통한 연동을 진행해야 합니다. 
+- ✅ **과제 2: 결제 내역 조회 및 통계 API**
+  - 커서 기반 페이지네이션 (`createdAt DESC, id DESC`)
+  - 통계 집계 (필터와 동일 조건)
+  - Base64 URL-safe 커서 인코딩
+  - 필터링 (partnerId, status, from, to)
 
-2) 결제 내역 조회 + 통계
-- 엔드포인트: GET `/api/v1/payments`
-- 쿼리: `partnerId`, `status`, `from`, `to`, `cursor`, `limit`
-- 응답: `items[]`, `summary{count,totalAmount,totalNetAmount}`, `nextCursor`, `hasNext`
-- 요구: 통계는 반드시 필터와 동일한 집합을 대상으로 계산되어야 하며, 커서 기반 페이지네이션을 사용해야 합니다.
+- ✅ **과제 3: 제휴사별 수수료 정책**
+  - `effective_from` 기준 최신 정책 적용
+  - `RoundingMode.HALF_UP` 반올림
+  - FeeCalculator 도메인 로직
 
-3) 제휴사별 수수료 정책
-- 스키마: `sql/scheme.sql` 의 `partner`, `partner_fee_policy`, `payment` 참조(필요시 보완/수정 가능)
-- 규칙: `effective_from` 기준 가장 최근(<= now) 정책을 적용, 금액은 HALF_UP로 반올림
-- 보안: 카드번호 등 민감정보는 저장/로깅 금지(제공 코드도 마스킹/부분 저장만 수행)
+### 테스트
+- ✅ **80개 이상 테스트** 작성 및 통과
+  - PaymentServiceTest (10개)
+  - QueryPaymentsServiceCursorTest (20개)
+  - PaymentControllerTest (16개)
+  - TestPgClientErrorHandlingTest (8개)
+  - AesGcmDecryptorTest (15개)
+  - PaymentEncValidatorTest (18개)
+  - 기타 단위/통합 테스트
 
-## 3. 제공 코드 개요(헥사고널)
-- `modules/domain`: 순수 도메인 모델/유틸(FeePolicy, Payment, FeeCalculator 등)
-- `modules/application`: 유스케이스/포트(PaymentUseCase, QueryPaymentsUseCase, Repository/PgClient 포트, PaymentService 등)
-  - 의도적으로 PaymentService에 “하드코드 수수료 계산”이 남아 있습니다. 이를 정책 기반으로 개선하세요.
-- `modules/infrastructure/persistence`: JPA 엔티티·리포지토리·어댑터(pageBy/summary 제공)
-- `modules/external/pg-client`: PG 연동 어댑터(Mock, TestPay 예시)
-- `modules/bootstrap/api-payment-gateway`: 실행 가능한 Spring Boot API(Controller, 시드 데이터)
+### 아키텍처
+- ✅ **헥사고널 아키텍처** 유지
+  - Domain: 순수 Kotlin (프레임워크 의존 없음)
+  - Application: 유스케이스 및 포트
+  - Infrastructure: JPA 어댑터
+  - External: PG 클라이언트 어댑터
+  - Bootstrap: Spring Boot 애플리케이션
 
-아키텍처 제약
-- 멀티모듈 경계/의존 역전/포트-어댑터 패턴을 유지할 것
-- `domain`은 프레임워크 의존 금지(순수 Kotlin)
+### 보안
+- ✅ **민감정보 보호**
+  - 카드번호: `cardBin` + `cardLast4`만 저장
+  - AES-256-GCM 암호화/복호화
+  - Bean Validation 통합
+  - 로깅 배제
 
-## 4. 필수 요구 사항
-- 결제 생성 시 저장 레코드에 다음 필드가 정확히 기록됨: 금액, 적용 수수료율, 수수료, 정산금, 카드 식별(마스킹), 승인번호, 승인시각, 상태
-- 조회 API에서 필터 조합별 `summary`가 `items`와 동일 집합을 정확히 집계
-- 커서 페이지네이션이 정렬 키(`createdAt desc, id desc`) 기반으로 올바르게 동작(다음 페이지 유무/커서 일관성)
-- 제휴사별 수수료 정책(비율/고정/시점)이 적용되어 계산 결과가 맞음
-- 모든 신규/수정 로직에 대해 의미 있는 단위/통합 테스트 존재, 빠르고 결정적
+---
 
-## 5. 개발 환경 & 실행 방법
-- JDK 21, Gradle Wrapper 사용
-- H2 인메모리 DB 기본 실행(필요 시 schema/data/migration 구성 변경 가능)
+## 🚀 빠른 시작
 
-명령어
+### 요구사항
+- **JDK 21** 이상
+- Gradle (Wrapper 포함)
+
+### 1. 프로젝트 클론
 ```bash
-./gradlew build                  # 컴파일 + 모든 테스트
-./gradlew test                   # 테스트만
-./gradlew :modules:bootstrap:api-payment-gateway:bootRun   # API 실행
-./gradlew ktlintCheck | ktlintFormat  # 코드 스타일 검사/자동정렬
+cd backend-test-v1
 ```
-기본 포트: 8080
 
-## 6. API 사양(요약)
-1) 결제 생성
+### 2. 빌드 및 테스트
+```bash
+./gradlew clean build
+# BUILD SUCCESSFUL
+# 80 tests passed
 ```
-POST /api/v1/payments
-{
-  "partnerId": 1,
-  "amount": 10000,
-  "cardBin": "123456",
-  "cardLast4": "4242",
-  "productName": "샘플"
-}
 
-200 OK
+### 3. 애플리케이션 실행
+```bash
+./gradlew :modules:bootstrap:api-payment-gateway:bootRun
+```
+
+애플리케이션이 `http://localhost:8080`에서 실행됩니다.
+
+### 4. 코드 스타일 검사
+```bash
+./gradlew ktlintCheck
+# 또는 자동 수정
+./gradlew ktlintFormat
+```
+
+---
+
+## 📖 API 사용 가이드
+
+### 1. 결제 생성
+
+**엔드포인트**: `POST /api/v1/payments`
+
+**요청 예시**:
+```bash
+curl -X POST http://localhost:8080/api/v1/payments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "partnerId": 2,
+    "amount": 10000,
+    "cardBin": "123456",
+    "cardLast4": "4242",
+    "productName": "테스트 상품",
+    "enc": "암호화된_카드정보"
+  }'
+```
+
+**응답 예시**:
+```json
 {
-  "id": 99,
-  "partnerId": 1,
+  "id": 1,
+  "partnerId": 2,
   "amount": 10000,
   "appliedFeeRate": 0.0300,
   "feeAmount": 400,
   "netAmount": 9600,
+  "cardBin": "123456",
   "cardLast4": "4242",
-  "approvalCode": "...",
-  "approvedAt": "2025-01-01T00:00:00Z",
+  "approvalCode": "10271234",
+  "approvedAt": "2025-10-27T07:30:00Z",
   "status": "APPROVED",
-  "createdAt": "2025-01-01T00:00:00Z"
+  "createdAt": "2025-10-27T07:30:00Z",
+  "updatedAt": "2025-10-27T07:30:00Z"
 }
 ```
 
-2) 결제 조회(통계+커서)
-```
-GET /api/v1/payments?partnerId=1&status=APPROVED&from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z&limit=20&cursor=
+### 2. 결제 조회 및 통계
 
-200 OK
+**엔드포인트**: `GET /api/v1/payments`
+
+**쿼리 파라미터**:
+- `partnerId` (optional): 제휴사 ID 필터
+- `status` (optional): 결제 상태 (APPROVED, CANCELED)
+- `from` (optional): 시작 일시 (yyyy-MM-dd HH:mm:ss)
+- `to` (optional): 종료 일시
+- `cursor` (optional): 페이지네이션 커서
+- `limit` (optional): 페이지 크기 (기본값: 20)
+
+**요청 예시**:
+```bash
+curl "http://localhost:8080/api/v1/payments?partnerId=2&status=APPROVED&limit=10"
+```
+
+**응답 예시**:
+```json
 {
-  "items": [ { ... }, ... ],
-  "summary": { "count": 35, "totalAmount": 35000, "totalNetAmount": 33950 },
-  "nextCursor": "ey1...",
-  "hasNext": true
+  "items": [
+    {
+      "id": 1,
+      "partnerId": 2,
+      "amount": 10000,
+      "appliedFeeRate": 0.0300,
+      "feeAmount": 400,
+      "netAmount": 9600,
+      "cardLast4": "4242",
+      "approvalCode": "10271234",
+      "approvedAt": "2025-10-27T07:30:00Z",
+      "status": "APPROVED",
+      "createdAt": "2025-10-27T07:30:00Z"
+    }
+  ],
+  "summary": {
+    "count": 1,
+    "totalAmount": 10000,
+    "totalNetAmount": 9600
+  },
+  "nextCursor": "MTczMDA5NzAwMDox",
+  "hasNext": false
 }
 ```
 
-## 7. 데이터베이스 가이드
-- 기준 테이블(예시):
-  - `partner(id, code, name, active)`
-  - `partner_fee_policy(id, partner_id, effective_from, percentage, fixed_fee)`
-  - `payment(id, partner_id, amount, applied_fee_rate, fee_amount, net_amount, card_bin, card_last4, approval_code, approved_at, status, created_at, updated_at)`
-- 인덱스 권장: `payment(created_at desc, id desc)`, `payment(partner_id, created_at desc)`, 검색 조건 컬럼
-- 정확한 스키마/인덱스는 요구사항을 만족하는 선에서 자유롭게 보완 가능
+---
 
-## 8. 제출물
-- github 저장소 링크를 사전과제 전달 메일로 회신. (메일 본문에 채용공고 명 / 실명 기재 필수)
-- 포함 사항: 구현 코드, 테스트, 간단 사용가이드(필요 시 README 보강), 변경이력, 추가 선택 구현 설명(선택)
+## 🧪 테스트 실행
 
-## 9. 평가 기준
-- 아키텍처 일관성(모듈 경계, 포트-어댑터, 의존 역전)
-- 도메인 모델링 적절성 및 가독성(KDoc, 네이밍)
-- 기능 정확성(통계 일치, 커서 페이징 동작, 수수료 계산)
-- 테스트 품질(결정적/빠름/커버리지)
-- 보안/개인정보 처리(민감정보 최소 저장, 로깅 배제)
-- 변경 이력 품질(의미 있는 커밋 메시지, 작은 단위 변경)
+### 전체 테스트
+```bash
+./gradlew test
+```
 
-## 10. 선택 과제(가산점)
-- 추가 제휴사 연동(Adapter 추가 및 전략 선택)
-- 오픈API 문서화(springdoc 등) 또는 간단한 운영지표(로그/메트릭)
-- MariaDB 등 외부 DB로 전환(docker-compose 포함) 및 마이그레이션 도구 적용
+### 모듈별 테스트
+```bash
+# 도메인 테스트
+./gradlew :modules:domain:test
 
-## 11. 참고자료
-- [과제 내 연동 대상 API 문서](https://api-test-pg.bigs.im/docs/index.html)
+# 애플리케이션 테스트
+./gradlew :modules:application:test
 
-## 12. 주의사항
-- 전달한 본 프로젝트는 정상동작하지 않습니다. 요구사항을 포함해, 정상 동작을 목표로 진행하세요.
-- 본 과제와 관련한 어떠한 질문도 받지 않습니다.
-- 제출물을 기준으로 면접시 코드리뷰를 진행합니다. 이를 고려해주세요. 
+# API 통합 테스트
+./gradlew :modules:bootstrap:api-payment-gateway:test
+```
 
-행운을 빕니다. 읽기 쉬운 코드, 일관된 설계, 신뢰할 수 있는 테스트를 기대합니다.
+### 테스트 커버리지
+- **80개 이상 테스트** 작성
+- **엣지 케이스** 포함 (null, 잘못된 형식, 경계값)
+- **결정적** (MockK로 외부 의존성 격리)
+- **빠름** (전체 테스트 2분 이내)
+
+---
+
+## 📁 프로젝트 구조
+
+```
+backend-test-v1/
+├── modules/
+│   ├── domain/                    # 순수 도메인 모델
+│   │   └── src/main/kotlin/im/bigs/pg/domain/
+│   │       ├── payment/          # Payment, PaymentStatus, FeeCalculator
+│   │       └── partner/          # Partner, FeePolicy
+│   │
+│   ├── application/               # 유스케이스 및 포트
+│   │   └── src/main/kotlin/im/bigs/pg/application/
+│   │       ├── payment/
+│   │       │   ├── service/     # PaymentService, QueryPaymentsService
+│   │       │   └── port/        # PaymentUseCase, QueryPaymentsUseCase
+│   │       └── pg/port/out/     # PgClientOutPort
+│   │
+│   ├── infrastructure/            # 인프라 어댑터
+│   │   └── persistence/
+│   │       └── src/main/kotlin/im/bigs/pg/infra/persistence/
+│   │           ├── payment/     # PaymentEntity, PaymentJpaRepository
+│   │           └── partner/     # PartnerEntity, FeePolicyEntity
+│   │
+│   ├── external/                  # 외부 시스템 어댑터
+│   │   └── pg-client/
+│   │       └── src/main/kotlin/im/bigs/pg/external/pg/
+│   │           ├── TestPgClient.kt      # TestPG REST API 연동
+│   │           └── MockPgClient.kt      # 목업 PG (비활성화)
+│   │
+│   ├── common/                    # 공통 유틸리티
+│   │   └── utils/
+│   │       └── src/main/kotlin/im/bigs/pg/utils/
+│   │           └── config/      # RestClientConfig
+│   │
+│   └── bootstrap/                 # 실행 가능 애플리케이션
+│       └── api-payment-gateway/
+│           └── src/main/kotlin/im/bigs/pg/api/
+│               ├── payment/     # PaymentController
+│               ├── crypto/      # AesGcmDecryptor
+│               └── config/      # DataInitializer, Validators
+│
+├── sql/
+│   └── scheme.sql                 # 데이터베이스 스키마
+│
+├── README.md                      # 본 파일
+```
+
+---
+
+## 📝 변경 이력
+
+### 커밋 히스토리
+
+```
+131e3da feat: 암호화 강화를 위한 validation 추가
+a01f517 feat: [Feature] 결제 내역 조회 및 통계 API 상세 구현
+e6e7386 feat: [Feature] 결제 생성 API 상세 구현
+```
+
+### 상세 내역
+
+#### 1. `e6e7386` - 결제 생성 API 구현
+**이슈**: #2
+
+**구현 사항**:
+- `PaymentService`: 제휴사별 수수료 정책 기반 결제 처리 로직
+- `TestPgClient`: TestPG REST API 연동 및 에러 처리 (401, 422)
+- `RestClientConfig`: 공통 HTTP 클라이언트 설정 추가
+- `PaymentController`: 결제 생성 엔드포인트
+
+**테스트**:
+- PaymentServiceTest: 10개 단위 테스트 (정상/예외/PG 선택)
+- TestPgClientErrorHandlingTest: 8개 에러 처리 테스트
+- PaymentControllerTest: 16개 컨트롤러 테스트 (create 5개, query 11개)
+
+#### 2. `a01f517` - 결제 내역 조회 및 통계 API 구현
+**이슈**: #3
+
+**구현 사항**:
+- `QueryPaymentsService`: 커서 기반 페이징 및 통계 집계 로직
+- 커서 인코딩/디코딩: Base64 URL-safe 방식 (`createdAt:id`)
+- 페이징 정렬: `createdAt DESC, id DESC`
+- 필터링: partnerId, status, from/to 기간 필터 지원
+- 통계 집계: count, totalAmount, totalNetAmount 계산
+
+**테스트**:
+- QueryPaymentsServiceCursorTest: 20개 테스트 (커서 엣지 케이스, 라운드트립, 페이징)
+
+**코드 품질**:
+- FeePolicyEntity, PartnerEntity: ktlint wildcard import 제거
+
+#### 3. `131e3da` - 암호화 강화 및 Validation
+**구현 사항**:
+- `AesGcmDecryptor`: AES-256-GCM 암호화/복호화 (Base64 URL-safe)
+- `PaymentEncValidator`: 복호화 데이터 검증 로직
+  - 카드번호: 16자리 숫자 (하이픈 허용)
+  - 생년월일: YYYYMMDD 형식, 실제 날짜 검증
+  - 만료일: MMYY 형식, 현재 시점 이후 검증
+  - 비밀번호: 숫자 2자리
+  - 금액: 1원 이상
+- `@PaymentEnc`: 커스텀 Bean Validation 어노테이션
+- `TestPgProperties`: 암호화 설정 프로퍼티 바인딩
+- `DataInitializer`: 초기 데이터 시딩 (Partner 2개, FeePolicy 2개)
+
+**테스트**:
+- AesGcmDecryptorTest: 15개 테스트 (정상/실패/실제 시나리오)
+- PaymentEncValidatorTest: 18개 테스트 (필드별 검증)
+
+**구조 개선**:
+- MockPgClient: @Component 주석 처리 (TestPgClient만 사용)
+- build.gradle.kts: common 서브 모듈 설정 추가
+
+---
+
+## 🎯 추가 구현 사항
+
+### 1. 보안 강화: AES-256-GCM 암호화
+- **목적**: 클라이언트가 민감한 카드 정보를 암호화하여 전송
+- **기능**:
+  - API Key를 SHA-256으로 해시하여 32바이트 AES 키 생성
+  - GCM 모드 (AEAD 인증 태그 128비트)
+  - 변조 감지 (Authentication Tag)
+  - Base64 URL-safe 인코딩
+- **테스트**: 15개 테스트로 암호화/복호화 검증
+
+### 2. 입력 검증: Bean Validation 통합
+- **목적**: 복호화된 결제 데이터의 비즈니스 규칙 자동 검증
+- **기능**:
+  - 커스텀 `@PaymentEnc` 어노테이션
+  - 필드별 검증 규칙 (카드번호, 생년월일, 만료일, 비밀번호, 금액)
+  - 복호화 실패 시 자동 검증 실패
+- **테스트**: 18개 테스트로 검증 규칙 커버
+
+### 3. HTTP 통신: RestClient 표준화
+- **목적**: Spring 6.1+ 표준 HTTP 클라이언트 사용
+- **기능**:
+  - RestClient 빈 생성 및 공통 설정
+  - 타임아웃 설정 (연결: 5초, 읽기: 10초)
+  - 에러 핸들러 (401, 422 등)
+- **확장성**: 다른 PG사 연동 시 동일 패턴 재사용
+
+### 4. 멀티모듈 구조 개선
+- **목적**: 모듈별 명확한 책임 분리
+- **기능**:
+  - common/utils 모듈 분리
+  - Gradle 서브 모듈 자동 적용
+  - 의존성 경계 명확화
+
+---
+
+## 🏗️ 기술 스택
+
+### 백엔드
+- **Language**: Kotlin 1.9.25
+- **Framework**: Spring Boot 3.4.4
+- **JVM**: Java 22 (bytecode target: 21)
+- **Build**: Gradle 8.x (Wrapper)
+
+### 데이터베이스
+- **H2**: 인메모리 (MySQL 호환 모드)
+- **JPA/Hibernate**: ORM
+
+### 테스트
+- **JUnit 5**: 테스트 프레임워크
+- **MockK**: Kotlin 모킹 라이브러리
+- **Fixture**: 테스트 데이터 생성
+
+### 보안
+- **AES-256-GCM**: 암호화/복호화
+- **Bean Validation**: 입력 검증
+
+### 코드 품질
+- **ktlint 0.45.2**: Kotlin 코드 스타일 검사
+
+---
+
+## 📋 데이터베이스 스키마
+
+### partner (제휴사)
+```sql
+CREATE TABLE partner (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    active BOOLEAN NOT NULL
+);
+```
+
+### partner_fee_policy (수수료 정책)
+```sql
+CREATE TABLE partner_fee_policy (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    partner_id BIGINT NOT NULL,
+    effective_from TIMESTAMP NOT NULL,
+    percentage DECIMAL(10, 6) NOT NULL,
+    fixed_fee DECIMAL(15, 0),
+    FOREIGN KEY (partner_id) REFERENCES partner(id)
+);
+```
+
+### payment (결제 이력)
+```sql
+CREATE TABLE payment (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    partner_id BIGINT NOT NULL,
+    amount DECIMAL(15, 0) NOT NULL,
+    applied_fee_rate DECIMAL(10, 6) NOT NULL,
+    fee_amount DECIMAL(15, 0) NOT NULL,
+    net_amount DECIMAL(15, 0) NOT NULL,
+    card_bin VARCHAR(8),
+    card_last4 VARCHAR(4),
+    approval_code VARCHAR(32) NOT NULL,
+    approved_at TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (partner_id) REFERENCES partner(id)
+);
+
+CREATE INDEX idx_payment_created_at_id ON payment(created_at DESC, id DESC);
+CREATE INDEX idx_payment_partner_created ON payment(partner_id, created_at DESC);
+```
+
+---
+
+## 🔐 보안 및 개인정보 처리
+
+### 민감정보 최소 저장
+- ✅ 카드번호 전체 저장 **금지**
+- ✅ `cardBin` (앞 6-8자리) + `cardLast4` (뒤 4자리)만 저장
+- ✅ 생년월일, 비밀번호는 저장 **안 함**
+
+### 암호화 전송
+- ✅ AES-256-GCM으로 클라이언트에서 암호화
+- ✅ 서버에서 복호화 및 검증
+- ✅ AEAD 인증으로 변조 감지
+
+### 로깅 배제
+- ✅ 민감정보는 로그에 출력 **금지**
+- ✅ PG 응답에서 민감정보 필터링
+
+---
+
+## 🎓 학습 포인트
+
+### 헥사고널 아키텍처
+- **포트-어댑터 패턴**: 비즈니스 로직과 기술 구현 분리
+- **의존 역전**: Application이 포트 정의, Infrastructure가 구현
+- **테스트 용이성**: 외부 의존성을 쉽게 모킹
+
+### 도메인 주도 설계
+- **순수 도메인 모델**: 프레임워크 의존 없음
+- **유비쿼터스 언어**: Payment, Partner, FeePolicy
+- **도메인 로직 집중**: FeeCalculator
+
+### 테스트 전략
+- **단위 테스트**: 비즈니스 로직 격리 테스트
+- **통합 테스트**: API 엔드포인트 검증
+- **엣지 케이스**: null, 잘못된 형식, 경계값
+
+### 보안
+- **민감정보 보호**: 최소 저장 원칙
+- **암호화**: AES-256-GCM (AEAD)
+- **입력 검증**: Bean Validation
+
+---
+
+## 📞 문의
+
+본 프로젝트는 백엔드 사전 과제로 작성되었습니다.
+
+**작성자**: Mingi Kim (migni4575@gmail.com)
+**제출일**: 2025-10-27
+
+---
+
+## 📄 라이선스
+
+본 프로젝트는 채용 과제 목적으로 작성되었습니다.
