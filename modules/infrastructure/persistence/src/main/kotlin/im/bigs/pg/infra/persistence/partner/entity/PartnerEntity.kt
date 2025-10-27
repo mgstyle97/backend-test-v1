@@ -13,13 +13,20 @@ import jakarta.persistence.Table
  */
 @Entity
 @Table(name = "partner")
-class PartnerEntity(
+open class PartnerEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null,
+    open var id: Long? = null,
     @Column(nullable = false, unique = true)
-    var code: String,
+    open var code: String,
     @Column(nullable = false)
-    var name: String,
+    open var name: String,
     @Column(nullable = false)
-    var active: Boolean = true,
-)
+    open var active: Boolean = true,
+) {
+    protected constructor() : this(
+        id = null,
+        code = "",
+        name = "",
+        active = true
+    )
+}

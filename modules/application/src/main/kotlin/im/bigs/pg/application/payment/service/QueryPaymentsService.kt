@@ -3,10 +3,17 @@ package im.bigs.pg.application.payment.service
 import im.bigs.pg.application.payment.port.`in`.QueryFilter
 import im.bigs.pg.application.payment.port.`in`.QueryPaymentsUseCase
 import im.bigs.pg.application.payment.port.`in`.QueryResult
+import im.bigs.pg.application.payment.port.out.PaymentOutPort
+import im.bigs.pg.application.payment.port.out.PaymentPage
+import im.bigs.pg.application.payment.port.out.PaymentQuery
+import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
+import im.bigs.pg.application.payment.port.out.PaymentSummaryProjection
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
 import java.time.Instant
-import java.util.Base64
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.util.*
 
 /**
  * 결제 이력 조회 유스케이스 구현체.
@@ -14,7 +21,9 @@ import java.util.Base64
  * - 통계는 조회 조건과 동일한 집합을 대상으로 계산됩니다.
  */
 @Service
-class QueryPaymentsService : QueryPaymentsUseCase {
+class QueryPaymentsService(
+    private val paymentRepository: PaymentOutPort
+) : QueryPaymentsUseCase {
     /**
      * 필터를 기반으로 결제 내역을 조회합니다.
      *
@@ -25,11 +34,43 @@ class QueryPaymentsService : QueryPaymentsUseCase {
      * @return 조회 결과(목록/통계/커서)
      */
     override fun query(filter: QueryFilter): QueryResult {
+        val decodedCursor = decodeCursor(filter.cursor)
+
+        val query = PaymentQuery(
+            partnerId = filter.partnerId,
+            from = filter.from,
+            to = filter.to,
+            limit = filter.limit,
+            cursorCreatedAt = decodedCursor.first?.let {
+                LocalDateTime.ofInstant(it, ZoneOffset.UTC)
+            },
+            cursorId = decodedCursor.second,
+        )
+
+        val pages: PaymentPage = paymentRepository.findBy(query)
+
+        val paymentFilter: PaymentSummaryFilter = PaymentSummaryFilter(
+            partnerId = filter.partnerId,
+            from = filter.from,
+            to = filter.to,
+            status = query.status,
+        )
+        val summary: PaymentSummaryProjection = paymentRepository.summary(paymentFilter)
+
+        val nextCursor: String? = encodeCursor(
+            createdAt = pages.nextCursorCreatedAt?.toInstant(ZoneOffset.UTC),
+            id = pages.nextCursorId
+        )
+
         return QueryResult(
-            items = emptyList(),
-            summary = PaymentSummary(count = 0, totalAmount = java.math.BigDecimal.ZERO, totalNetAmount = java.math.BigDecimal.ZERO),
-            nextCursor = null,
-            hasNext = false,
+            items = pages.items,
+            summary = PaymentSummary(
+                count = summary.count,
+                totalAmount = summary.totalAmount,
+                totalNetAmount = summary.totalNetAmount,
+            ),
+            nextCursor = nextCursor,
+            hasNext = pages.hasNext,
         )
     }
 

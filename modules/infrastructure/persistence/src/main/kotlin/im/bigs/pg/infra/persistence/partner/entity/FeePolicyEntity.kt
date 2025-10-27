@@ -8,6 +8,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 /**
  * DB용 수수료 정책 엔티티.
@@ -26,4 +28,12 @@ class FeePolicyEntity(
     var percentage: BigDecimal,
     @Column(precision = 15, scale = 0)
     var fixedFee: BigDecimal? = null,
-)
+) {
+    protected constructor() : this(
+        id = null,
+        partnerId = 0,
+        effectiveFrom = LocalDateTime.now().toInstant(ZoneOffset.UTC),
+        percentage = 0.toBigDecimal(),
+        fixedFee = null,
+    )
+}
