@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <!-- 1) MDC(traceId 등) 사용을 위해 Spring 설정 -->
+    <springProperty scope="context" name="springAppName" source="spring.application.name"/>
+
+    <!-- 2) 콘솔에 출력 (사람이 읽기 쉬운 텍스트 로그) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                [%level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %logger{20} - %msg | traceId=%X{traceId}%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- 3) JSON 로그 파일 출력 (ELK, Loki 등 수집용) -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <fieldName>timestamp</fieldName>
+                </timestamp>
+                <pattern>
+                    <pattern>
+                        {
+                        "level": "%level",
+                        "logger": "%logger",
+                        "message": "%message",
+                        "traceId": "%X{traceId}",
+                        "thread": "%thread",
+                        "service": "${springAppName:-unknown-service}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- 4) 기본 로그 레벨 및 출력 위치 지정 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="JSON_FILE"/>
+    </root>
+</configuration>

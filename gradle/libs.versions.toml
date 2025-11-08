@@ -3,6 +3,7 @@ jackson = "2.16.1"
 mockk = "1.13.5"
 junit-platform = "1.10.2"
 fixture = "1.2.0"
+logstash = "7.4"
 
 [libraries]
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
@@ -23,6 +24,8 @@ spring-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 database-h2 = { module = "com.h2database:h2" }
 database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client" }
 
+logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstash" }
+
 test-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 test-fixture = { module = "com.appmattus.fixture:fixture", version.ref = "fixture" }
 
@@ -37,6 +40,10 @@ bootstrap = [
   "spring-boot-starter-validation",
   "jackson-module-kotlin",
   "jackson-datatype-jsr310",
+]
+logging = [
+    "spring-boot-starter-logging",
+    "logstash-logback-encoder"
 ]
 test = [
   "test-junit-platform-launcher",

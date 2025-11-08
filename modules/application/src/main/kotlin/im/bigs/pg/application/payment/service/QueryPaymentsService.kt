@@ -1,5 +1,6 @@
 package im.bigs.pg.application.payment.service
 
+import im.bigs.pg.application.payment.exception.PaymentInvalidQueryException
 import im.bigs.pg.application.payment.port.`in`.QueryFilter
 import im.bigs.pg.application.payment.port.`in`.QueryPaymentsUseCase
 import im.bigs.pg.application.payment.port.`in`.QueryResult
@@ -8,6 +9,7 @@ import im.bigs.pg.application.payment.port.out.PaymentPage
 import im.bigs.pg.application.payment.port.out.PaymentQuery
 import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
 import im.bigs.pg.application.payment.port.out.PaymentSummaryProjection
+import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -38,6 +40,13 @@ class QueryPaymentsService(
 
         val query = PaymentQuery(
             partnerId = filter.partnerId,
+            status = filter.status?.let { status ->
+                try {
+                    PaymentStatus.valueOf(status)
+                } catch (e: IllegalArgumentException) {
+                    throw PaymentInvalidQueryException("Not Supported Payment Status")
+                }
+            },
             from = filter.from,
             to = filter.to,
             limit = filter.limit,

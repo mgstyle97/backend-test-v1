@@ -12,6 +12,7 @@ dependencies {
     implementation(projects.modules.infrastructure.persistence)
     implementation(projects.modules.external.pgClient)
     implementation(libs.spring.boot.starter.jpa)
+    implementation(libs.bundles.logging)
     implementation(libs.bundles.bootstrap)
     testImplementation(libs.bundles.test)
     testImplementation(libs.spring.boot.starter.test) {
