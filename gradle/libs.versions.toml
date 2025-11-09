@@ -23,6 +23,8 @@ spring-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 database-h2 = { module = "com.h2database:h2" }
 database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client" }
+database-mysql = { module = "com.mysql:mysql-connector-j" }
+database-postgresql = { module = "org.postgresql:postgresql" }
 
 logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstash" }
 

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pg-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: pg_production
+      MYSQL_USER: pg_user
+      MYSQL_PASSWORD: pg_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./sql/scheme.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - mysql-data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  postgres:
+    image: postgres:15
+    container_name: pg-postgres
+    environment:
+      POSTGRES_DB: pg_production
+      POSTGRES_USER: pg_user
+      POSTGRES_PASSWORD: pg_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql/scheme.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  mysql-data:
+  postgres-data:

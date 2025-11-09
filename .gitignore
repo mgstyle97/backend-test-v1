@@ -223,4 +223,17 @@ gradle-app.setting
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,jetbrains+all,macos,windows,kotlin,gradle
 
+# Application logs
 **/logs/
+
+# Environment variables (민감 정보 포함)
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.db-journal
+
+# Settings files
+application-prod*
