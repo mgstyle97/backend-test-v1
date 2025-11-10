@@ -12,6 +12,7 @@ import im.bigs.pg.domain.partner.FeePolicy
 import im.bigs.pg.domain.payment.Payment
 import im.bigs.pg.domain.payment.PaymentStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 /**
@@ -31,6 +32,7 @@ class PaymentService(
      * - 현재 예시 구현은 하드코드된 수수료(3% + 100)로 계산합니다.
      * - 과제: 제휴사별 수수료 정책을 적용하도록 개선해 보세요.
      */
+    @Transactional
     override fun pay(command: PaymentCommand): Payment {
         val partner = partnerRepository.findById(command.partnerId)
             ?: throw IllegalArgumentException("Partner not found: ${command.partnerId}")

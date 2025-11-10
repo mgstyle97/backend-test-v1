@@ -12,6 +12,7 @@ import im.bigs.pg.application.payment.port.out.PaymentSummaryProjection
 import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -35,6 +36,7 @@ class QueryPaymentsService(
      * @param filter 파트너/상태/기간/커서/페이지 크기
      * @return 조회 결과(목록/통계/커서)
      */
+    @Transactional(readOnly = true)
     override fun query(filter: QueryFilter): QueryResult {
         val decodedCursor = decodeCursor(filter.cursor)
 

@@ -237,3 +237,6 @@ gradle-app.setting
 
 # Settings files
 application-prod*
+
+# Backup files
+*.backup.md
