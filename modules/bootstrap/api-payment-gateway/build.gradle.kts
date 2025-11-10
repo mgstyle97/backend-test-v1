@@ -16,8 +16,8 @@ dependencies {
     implementation(libs.bundles.bootstrap)
 
     // Database drivers
-    runtimeOnly(libs.database.h2)           // 개발 환경용 (dev profile)
-    runtimeOnly(libs.database.mysql)        // 운영 환경용 (MySQL)
+    runtimeOnly(libs.database.h2) // 개발 환경용 (dev profile)
+    runtimeOnly(libs.database.mysql) // 운영 환경용 (MySQL)
 
     testImplementation(libs.bundles.test)
     testImplementation(libs.spring.boot.starter.test) {
