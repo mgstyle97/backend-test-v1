@@ -1,6 +1,9 @@
 package im.bigs.pg.application.payment.exception
 
-sealed class PgException(code: PgErrorCode, message: String) : RuntimeException(message)
+sealed class PgException(
+    override val message: String,
+    code: PgErrorCode,
+) : RuntimeException(message)
 
 class PgAuthenticationException(message: String = "PG사 인증 오류") :
     PgException(
@@ -9,7 +12,7 @@ class PgAuthenticationException(message: String = "PG사 인증 오류") :
     )
 
 class PgValidationException(code: PgErrorCode = PgErrorCode.INVALID_CARD, message: String = "카드 결제에 실패했습니다.") :
-    PgException(code, message)
+    PgException(code = code, message = message)
 
 class PgUnexpectedException(message: String = "PG사 결제에 오류가 발생했습니다. 관리자를 통해 확인해주세요.") :
     PgException(
