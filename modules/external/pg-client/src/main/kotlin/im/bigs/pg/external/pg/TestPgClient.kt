@@ -1,13 +1,14 @@
 package im.bigs.pg.external.pg
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import im.bigs.pg.application.payment.exception.PgAuthenticationException
+import im.bigs.pg.application.payment.exception.PgErrorCode
+import im.bigs.pg.application.payment.exception.PgUnexpectedException
+import im.bigs.pg.application.payment.exception.PgValidationException
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgApproveResult
 import im.bigs.pg.application.pg.port.out.PgClientOutPort
 import im.bigs.pg.external.pg.dto.TestPgErrorResponse
-import im.bigs.pg.external.pg.exception.TestPgAuthenticationException
-import im.bigs.pg.external.pg.exception.TestPgUnexpectedException
-import im.bigs.pg.external.pg.exception.TestPgValidationException
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatusCode
 import org.springframework.stereotype.Component
@@ -44,9 +45,9 @@ class TestPgClient(
      * - 요청 암호화 (AES-256-GCM)
      * - 응답 파싱
      *
-     * @throws TestPgAuthenticationException API-KEY 헤더 오류 (401)
-     * @throws TestPgValidationException 검증 실패 (422)
-     * @throws TestPgUnexpectedException 예상치 못한 오류
+     * @throws PgAuthenticationException API-KEY 헤더 오류 (401)
+     * @throws PgValidationException 검증 실패 (422)
+     * @throws PgUnexpectedException 예상치 못한 오류
      */
     override fun approve(request: PgApproveRequest): PgApproveResult {
         return restClient.post()
@@ -55,32 +56,24 @@ class TestPgClient(
             .body(mapOf("enc" to request.enc))
             .retrieve()
             .onStatus({ status -> status == HttpStatusCode.valueOf(401) }) { _, _ ->
-                throw TestPgAuthenticationException()
+                throw PgAuthenticationException("API-KEY 헤더 오류")
             }
             .onStatus({ status -> status == HttpStatusCode.valueOf(422) }) { _, response ->
-                try {
-                    val errorBody = objectMapper.readValue(
-                        response.body,
-                        TestPgErrorResponse::class.java,
-                    )
-                    throw TestPgValidationException(
-                        code = errorBody.code,
-                        errorCode = errorBody.errorCode,
-                        message = errorBody.message,
-                        referenceId = errorBody.referenceId,
-                    )
-                } catch (e: Exception) {
-                    if (e is TestPgValidationException) throw e
-                    throw TestPgUnexpectedException(422, "Failed to parse error response: ${e.message}", e)
-                }
+                val errorBody = objectMapper.readValue(
+                    response.body,
+                    TestPgErrorResponse::class.java,
+                )
+                throw PgValidationException(
+                    code = PgErrorCode.valueOf(errorBody.errorCode),
+                    message = errorBody.message,
+                )
             }
             .onStatus({ status -> status.isError }) { _, response ->
-                throw TestPgUnexpectedException(
-                    response.statusCode.value(),
-                    "Unexpected error from TestPG API",
+                throw PgUnexpectedException(
+                    "PG사에서의 통신 오류로 인해 승인 여부를 확인할 수 없습니다. 관리자를 통해 확인부탁드립니다.",
                 )
             }
             .body(PgApproveResult::class.java)
-            ?: throw TestPgUnexpectedException(200, "Response body is null")
+            ?: throw PgUnexpectedException("Response body is null")
     }
 }

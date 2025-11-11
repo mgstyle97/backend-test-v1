@@ -36,3 +36,23 @@ create table if not exists payment (
   index idx_payment_partner_created (partner_id, created_at desc)
 );
 
+-- pg approval history
+create table if not exists pg_history (
+    id bigint auto_increment primary key,
+
+    card_bin varchar(8) null,
+    card_last4 varchar(4) null,
+
+    amount decimal(15,0) not null,
+
+    pg_provider varchar(20) not null,
+
+    status varchar(20) not null,
+
+    created_at timestamp not null,
+    updated_at timestamp not null,
+
+    index idx_history_pg_created (created_at desc, id desc),
+    index idx_history_pg_provider (pg_provider, created_at, desc),
+    index idx_history_status (status, created_at desc)
+);

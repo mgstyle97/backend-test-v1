@@ -7,10 +7,12 @@ import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgApproveResult
 import im.bigs.pg.application.pg.port.out.PgClientOutPort
+import im.bigs.pg.application.pghistory.port.out.PgHistoryOutPort
 import im.bigs.pg.domain.partner.FeePolicy
 import im.bigs.pg.domain.partner.Partner
 import im.bigs.pg.domain.payment.Payment
 import im.bigs.pg.domain.payment.PaymentStatus
+import im.bigs.pg.domain.pghistory.PgHistory
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -30,6 +32,7 @@ class PaymentServiceTest {
     private lateinit var partnerRepo: PartnerOutPort
     private lateinit var feeRepo: FeePolicyOutPort
     private lateinit var paymentRepo: PaymentOutPort
+    private lateinit var pgHistoryOutPort: PgHistoryOutPort
     private lateinit var pgClient: PgClientOutPort
     private lateinit var service: PaymentService
 
@@ -38,12 +41,21 @@ class PaymentServiceTest {
         partnerRepo = mockk()
         feeRepo = mockk()
         paymentRepo = mockk()
+        pgHistoryOutPort = mockk()
+
+        // pgHistoryOutPort Mock 동작 정의
+        every { pgHistoryOutPort.save(any()) } answers {
+            val history = firstArg<PgHistory>()
+            history.copy(id = 1L)
+        }
+        every { pgHistoryOutPort.updateHistory(any(), any()) } returns 1
+
         pgClient = object : PgClientOutPort {
             override fun supports(partnerId: Long) = true
             override fun approve(request: PgApproveRequest) =
                 PgApproveResult("APPROVAL-123", LocalDateTime.of(2024, 1, 1, 0, 0), PaymentStatus.APPROVED)
         }
-        service = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(pgClient))
+        service = PaymentService(partnerRepo, feeRepo, paymentRepo, pgHistoryOutPort, listOf(pgClient))
     }
 
     @Nested
@@ -189,7 +201,7 @@ class PaymentServiceTest {
                 override fun approve(request: PgApproveRequest) =
                     PgApproveResult("CUSTOM-APPROVAL-999", approvedAt, PaymentStatus.APPROVED)
             }
-            val customService = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(customPgClient))
+            val customService = PaymentService(partnerRepo, feeRepo, paymentRepo, pgHistoryOutPort, listOf(customPgClient))
 
             every { partnerRepo.findById(1L) } returns Partner(1L, "TEST", "Test", true)
             every { feeRepo.findEffectivePolicy(1L, any()) } returns FeePolicy(
@@ -269,7 +281,7 @@ class PaymentServiceTest {
                 override fun approve(request: PgApproveRequest) =
                     PgApproveResult("", LocalDateTime.now(), PaymentStatus.APPROVED)
             }
-            val customService = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(nonSupportPgClient))
+            val customService = PaymentService(partnerRepo, feeRepo, paymentRepo, pgHistoryOutPort, listOf(nonSupportPgClient))
 
             every { partnerRepo.findById(1L) } returns Partner(1L, "TEST", "Test", true)
 
@@ -325,7 +337,7 @@ class PaymentServiceTest {
                 override fun approve(request: PgApproveRequest) =
                     PgApproveResult("CLIENT2-APPROVAL", LocalDateTime.now(), PaymentStatus.APPROVED)
             }
-            val multiClientService = PaymentService(partnerRepo, feeRepo, paymentRepo, listOf(pgClient1, pgClient2))
+            val multiClientService = PaymentService(partnerRepo, feeRepo, paymentRepo, pgHistoryOutPort, listOf(pgClient1, pgClient2))
 
             every { partnerRepo.findById(2L) } returns Partner(2L, "TEST2", "Test2", true)
             every { feeRepo.findEffectivePolicy(2L, any()) } returns FeePolicy(

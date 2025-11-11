@@ -104,16 +104,14 @@ class TestPgClientErrorHandlingTest {
     inner class OtherErrors {
 
         @Test
-        @DisplayName("TestPgUnexpectedException은 상태 코드와 메시지를 포함한다")
-        fun `TestPgUnexpectedException은 상태 코드와 메시지를 포함한다`() {
+        @DisplayName("TestPgUnexpectedException은 메시지를 포함한다")
+        fun `TestPgUnexpectedException은 메시지를 포함한다`() {
             // Given & When
             val exception = TestPgUnexpectedException(
-                statusCode = 500,
-                message = "Unexpected error from TestPG API",
+                message = "Unexpected error from TestPG API"
             )
 
             // Then
-            assertTrue(exception.message!!.contains("500"))
             assertTrue(exception.message!!.contains("Unexpected error from TestPG API"))
             assertTrue(exception is TestPgException)
         }
@@ -126,13 +124,11 @@ class TestPgClientErrorHandlingTest {
 
             // When
             val exception = TestPgUnexpectedException(
-                statusCode = 422,
                 message = "Failed to parse error response",
-                cause = cause,
+                cause = cause
             )
 
             // Then
-            assertTrue(exception.message!!.contains("422"))
             assertTrue(exception.message!!.contains("Failed to parse error response"))
             assertEquals(cause, exception.cause)
         }
